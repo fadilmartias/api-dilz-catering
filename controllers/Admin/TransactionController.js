@@ -1,59 +1,46 @@
 import { db } from "../../config/database.js";
 import { errorRes, successRes } from "../../utils/response.js";
-import {
-  generateInvoiceNumber,
-} from "../../utils/helper.js";
+import { generateInvoiceNumber } from "../../utils/helper.js";
 class Transaction {
   // constructor() {}
 
   list = async (req, res) => {
     const input = req.body;
-    console.log(input.date);
+    const id_users = [];
+    let transformedData = [];
     try {
-      const query = `SELECT t.*, td.*, t.id id_transaction, u.*, u.id id_user, td.id id_detail, t.status status_bayar FROM transactions t JOIN users u ON t.id_user = u.id JOIN transaction_details td ON t.id = td.id_transaction WHERE 1 AND DATE(td.created_at) = DATE_FORMAT(STR_TO_DATE('${input.date}', '%d-%m-%Y'), '%Y-%m-%d') ORDER BY t.created_at DESC`;
-      console.log();
-      db.query(query, (error, result) => {
-        if (error) return errorRes(res, error);
-        // console.log(result);
-        const id_users = [];
-        // Objek untuk menyimpan hasil transformasi
-        var transformedData = [];
+      const [rows] = await db.execute(
+        `SELECT t.*, td.*, t.id id_transaction, u.*, u.id id_user, td.id id_detail, t.status status_bayar FROM transactions t JOIN users u ON t.id_user = u.id JOIN transaction_details td ON t.id = td.id_transaction WHERE 1 AND DATE(td.created_at) = DATE_FORMAT(STR_TO_DATE('${input.date}', '%d-%m-%Y'), '%Y-%m-%d') ORDER BY t.created_at DESC`
+      );
 
-        // Loop melalui setiap entri hasil query
-        let no = -1;
-        result.map(function (entry, idx) {
-          console.log(transformedData, !id_users.includes(entry.id_user));
-
-          if (!id_users.includes(entry.id_user)) {
-            no++;
-            var transaction = {
-              id_transaction: entry.id_transaction,
-              id_user: entry.id_user,
-              name: entry.name,
-              total_price: entry.total_price,
-              status_bayar: entry.status_bayar,
-              details: [],
-            };
-            id_users.push(entry.id_user);
-            transformedData.push(transaction);
-          }
-
-          // Objek untuk detail setiap transaksi
-          var detail = {
-            id_detail: entry.id_detail,
-            menu_name: entry.menu_name,
-            qty: entry.qty,
-            price: entry.price,
-            item_price: entry.item_price,
-
-            // Menambahkan detail ke dalam array details di objek transformedData
+      // Loop melalui setiap entri hasil quey
+      let no = -1;
+      rows.map(function (entry, idx) {
+        if (!id_users.includes(entry.id_user)) {
+          no++;
+          var transaction = {
+            id_transaction: entry.id_transaction,
+            id_user: entry.id_user,
+            name: entry.name,
+            net_price: entry.net_price,
+            status_bayar: entry.status_bayar,
+            details: [],
           };
-          transformedData[no].details.push(detail);
-        });
+          id_users.push(entry.id_user);
+          transformedData.push(transaction);
+        }
 
-        // Menampilkan hasil transformasi
-        return successRes(res, transformedData, "List Transactions");
+        var detail = {
+          id_detail: entry.id_detail,
+          menu_name: entry.menu_name,
+          qty: entry.qty,
+          price: entry.price,
+          item_price: entry.item_price,
+        };
+        transformedData[no].details.push(detail);
       });
+
+      return successRes(res, transformedData, "Transaction has been retrieved");
     } catch (err) {
       console.log(err);
       return errorRes(res, err.message);
@@ -62,15 +49,12 @@ class Transaction {
 
   listByToday = async (req, res) => {
     try {
-      const query = `SELECT 
+      const [rows] = await db.execute(`SELECT 
         created_at AS date, 
         COUNT(*) AS total,
         SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS lunas,
-        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions WHERE DATE(created_at) = CURDATE() GROUP BY created_at ORDER BY created_at DESC`;
-      db.query(query, (error, result) => {
-        if (error) return errorRes(res, error, "Error", 500);
-        return successRes(res, result, "List Transactions");
-      });
+        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions WHERE DATE(created_at) = CURDATE() GROUP BY created_at ORDER BY created_at DESC`);
+      return successRes(res, rows, "Today transaction has been retrieved");
     } catch (err) {
       console.log(err);
       return errorRes(res, err.message);
@@ -79,134 +63,84 @@ class Transaction {
 
   listByDate = async (req, res) => {
     try {
-      const query = `SELECT 
+      const [rows] = await db.execute(`SELECT 
       created_at AS date, 
       COUNT(*) AS total,
       SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS lunas,
-      SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions GROUP BY created_at ORDER BY created_at DESC`;
-      db.query(query, (error, result) => {
-        if (error) return errorRes(error, "Error", res, 500);
-        return successRes(res, result);
-      });
+      SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions GROUP BY created_at ORDER BY created_at DESC`);
+      return successRes(res, rows, `Transaction has been retrieved`);
     } catch (err) {
       console.log(err);
-      return errorRes(res.err.message);
+      return errorRes(err.message);
     }
   };
 
   addMultipleOrder = async (req, res) => {
+    const input = req.body;
+    console.log(input);
+    let affectedRows = {
+      transaction: 0,
+      transaction_detail: 0,
+    };
+    let conn;
     try {
-      const input = req.body;
-      let resultFinal = {
-        transaction: "0 data ditambahkan",
-        transaction_detail: "0 data ditambahkan",
-      };
-      console.log(input);
-      db.beginTransaction(function (err) {
-        if (err) {
-          return errorRes(res, err);
-        }
-        let affectedRowsTransaction = 0;
-        let affectedRowsDetail = 0;
-        input.map(async(item, idx) => {
-          const noInvoice = generateInvoiceNumber();
-          let lastIdTransaction;
-          const sql_transaction = `INSERT INTO transactions (no_invoice, id_user, status, total_price) VALUES (?, ?, ?, ?)`;
-          if (item.menu.length > 0 && item.total_price > 0) {
-            try {
-              const [rows, fields] = await db.promise().query(
-                sql_transaction,
-                [noInvoice, item.id_user, 0, item.total_price])
-                lastIdTransaction = rows.insertId;
-                console.log(lastIdTransaction);
-                affectedRowsTransaction++;
-            } catch (error) {
-              console.log(error);
-            }
-            item.menu.map(async (detail, idx) => {
-              if (
-                detail.id_menu != "" &&
-                detail.qty > 0 &&
-                detail.subtotal > 0
-              ) {
-                let menu_name;
-                try {
-                  const [rows, fields] = await db
-                    .promise()
-                    .query(`SELECT menu_name FROM menus WHERE id = ? LIMIT 1`, [
-                      detail.id_menu,
-                    ]);
-                  menu_name = rows[0].menu_name;
-                  // Lakukan sesuatu dengan hasil query
-                } catch (error) {
-                  db.rollback(function () {
-                    return errorRes(res, error);
-                  });
-                  console.error("Error querying database:", error);
-                }
-                const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, menu_name, item_price, price, status, qty) VALUES (?, ?, ?, ?, ?, ?)`;
-                db.query(
-                  sql_transaction_detail,
-                  [
-                    lastIdTransaction,
-                    menu_name,
-                    detail.price,
-                    detail.subtotal,
-                    0,
-                    detail.qty,
-                  ],
-                  (error, result) => {
-                    if (error) {
-                      // Rollback jika terjadi kesalahan
-                      // db.rollback(function () {
-                      //   return errorRes(res, error);
-                      // });
-                      console.log(error);
-                    }
-                  }
-                );
-                affectedRowsDetail++;
-              } else {
-                resultFinal.transaction_detail = `${affectedRowsDetail} data transaksi detail ditambahkan`;
-              }
-            });
-            resultFinal.transaction_detail = `${affectedRowsDetail} data transaksi detail ditambahkan`;
-          } else {
-            resultFinal.transaction = `${affectedRowsTransaction} data transaksi ditambahkan`;
-          }
-        });
-        resultFinal.transaction = `${affectedRowsTransaction} data transaksi ditambahkan`;
+      conn = await db.getConnection();
+      await conn.beginTransaction();
+      for (const item of input) {
+        const noInvoice = generateInvoiceNumber();
+        let lastIdTransaction;
+        const sql_transaction = `INSERT INTO transactions (no_invoice, id_user, status, gross_price, net_price) VALUES (?, ?, ?, ?, ?)`;
+        if (item.menu.length > 0 && item.total_price > 0) {
+          const [rows] = await conn.execute(sql_transaction, [
+            noInvoice,
+            item.id_user,
+            0,
+            item.total_price,
+            item.total_price
+          ]);
+          lastIdTransaction = rows.insertId;
+          affectedRows.transaction += rows.affectedRows
 
-        // Commit transaksi jika berhasil
-        db.commit(function (err) {
-          if (err) {
-            return errorRes(res, err);
+          for (const detail of item.menu) {
+            if (detail.id_menu != "" && detail.qty > 0 && detail.subtotal > 0) {
+              const [menus] = await conn.execute(
+                `SELECT menu_name FROM menus WHERE id = ? LIMIT 1`,
+                [detail.id_menu]
+              );
+              const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, menu_name, item_price, price, status, qty) VALUES (?, ?, ?, ?, ?, ?)`;
+              const [rows] = await conn.execute(sql_transaction_detail, [
+                lastIdTransaction,
+                menus[0].menu_name,
+                detail.price,
+                detail.subtotal,
+                0,
+                detail.qty,
+              ]);
+            affectedRows.transaction_detail += rows.affectedRows
+            }
           }
-          // Mengembalikan respon atau melakukan tindakan lainnya
-          return successRes(
-            res,
-            `${resultFinal.transaction}, ${resultFinal.transaction_detail}`,
-            "Transaksi berhasil ditambahkan!"
-          );
-        });
-      });
+        }
+      }
+      await conn.commit();
+      return successRes(
+        res,
+        {affectedRows},
+        `${affectedRows.transaction} transaction records and ${affectedRows.transaction_detail} detail transaction records has been added`
+      );
     } catch (err) {
       console.log(err);
+      await conn.rollback();
       return errorRes(res, err.message);
+    } finally {
+      conn.release();
     }
   };
 
   updateStatusTransaction = async (req, res) => {
+    const input = req.body;
     try {
-      const input = req.body;
-      let resultFinal = {};
-      const sql = `UPDATE transactions SET status = ? WHERE id = ?`;
-      db.query(sql, [input.status, input.id_transaction], (err, result) => {
-        if (err) {
-          return errorRes(res, err.message);
-        }
-        return successRes(res, result.affectedRows);
-      });
+      const [rows] = await db.execute(`UPDATE transactions SET status = ? WHERE id = ?`, [input.status, input.id_transaction]);
+        return successRes(res, rows, `${rows.affectedRows} records has been updated`);
     } catch (err) {
       return errorRes(res, err);
     }

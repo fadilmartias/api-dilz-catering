@@ -4,12 +4,11 @@ import { errorRes, successRes } from "../../utils/response.js";
 class Customer {
   list = async (req, res) => {
     try {
-      const course =
-        "SELECT * FROM users WHERE status = 1 AND role = 'customer'";
-      db.query(course, (error, result) => {
-        if (error) return errorRes(res, error);
-        return successRes(res, result);
-      });
+      const [customers] = await db.execute(
+        "SELECT * FROM users WHERE status = ? AND role = ?",
+        [1, "customer"]
+      );
+      return successRes(res, customers, "Customer data have been retrieved");
     } catch (err) {
       console.log(err);
       return errorRes(res, err.message);
@@ -19,24 +18,25 @@ class Customer {
   actionCustomer = async (req, res) => {
     const input = req.body;
     try {
-      if(input.id == 0) {
-        const sql = `INSERT INTO users (username, name, email, phone, password) VALUES (?, ?, ?, ?, ?)`;
-        db.query(sql, [input.username, input.name, input.email, input.phone, input.password], (error, result) => {
-          if (error) {
-            console.log(error);
-            return errorRes(res, error);
-          }
-          return successRes(res, result, 'Data berhasil ditambahkan');
-        });
+      if (input.id == 0) {
+        const [rows] = await db.execute(
+          `INSERT INTO users (username, name, email, phone, password, is_testing) VALUES (?, ?, ?, ?, ?, ?)`,
+          [input.username, input.name, input.email, input.phone, input.password, 0] // FIXME change is_testing to 0 at prod
+        ); 
+        return successRes(res, rows, `${rows.affectedRows} record has been added`);
       } else {
-        const sql = `UPDATE users SET username = ?, name = ?, email = ?, phone = ?, password = ? WHERE id = ? `;
-        db.query(sql, [input.username, input.name, input.email, input.phone, input.password, input.id], (error, result) => {
-          if (error) {
-            console.log(error);
-            return errorRes(res, error);
-          }
-          return successRes(res, result, 'Data berhasil diupdate');
-        });
+        const [rows] = await db.execute(
+          `UPDATE users SET username = ?, name = ?, email = ?, phone = ?, password = ? WHERE id = ? `,
+          [
+            input.username,
+            input.name,
+            input.email,
+            input.phone,
+            input.password,
+            input.id,
+          ]
+        );
+        return successRes(res, rows, `${rows.affectedRows} record has been updated`);
       }
     } catch (err) {
       console.log(err);
@@ -44,21 +44,17 @@ class Customer {
     }
   };
 
-  deleteCustomer = (req, res) => {
+  deleteCustomer = async (req, res) => {
     const input = req.params;
-    console.log(input.id);
     try {
-      const sql = `DELETE FROM users WHERE id = ?`;
-      db.query(sql, [input.id], (error, result) => {
-        if (error) {
-          console.log(error);
-          return errorRes(res, error);
-        }
-        return successRes(res, result, 'Data berhasil dihapus');
-      });
-    } catch (error) {
-      
+      const [rows] = await db.execute(`DELETE FROM users WHERE id = ?`, [
+        input.id,
+      ]);
+      return successRes(res, rows, `${rows.affectedRows} record has been deleted`);
+    } catch (err) {
+      console.log(err);
+      return errorRes(res, err.message);
     }
-  }
+  };
 }
 export default Customer;
