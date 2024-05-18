@@ -143,7 +143,7 @@ class Transaction {
       const [rows] = await db.execute(`UPDATE transactions SET status = ? WHERE id = ?`, [input.status, input.id_transaction]);
         return successRes(res, rows, `${rows.affectedRows} records has been updated`);
     } catch (err) {
-      return errorRes(res, err);
+      return errorRes(res, err.message);
     }
   };
 }

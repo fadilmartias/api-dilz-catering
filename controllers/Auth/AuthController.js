@@ -102,48 +102,75 @@ export default class Auth {
         `SELECT * FROM users WHERE refresh_token = ?`,
         [refreshToken]
       );
-      if (rows.length == 0) return errorRes(res, null, "Can't get current user", 500);
+      if (rows.length == 0)
+        return errorRes(res, null, "Can't get current user", 500);
       const userId = rows[0].id;
-      await db.execute(
-        `UPDATE users SET refresh_token = ? WHERE id = ?`,
-        [null, userId]
-      );
+      await db.execute(`UPDATE users SET refresh_token = ? WHERE id = ?`, [
+        null,
+        userId,
+      ]);
       res.clearCookie("refreshToken");
       return successRes(res, null, "Success Logout", 200);
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message)
+      return errorRes(res, err.message);
     }
   };
   refreshToken = async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return errorRes(res, null, "Unauthorized", 401);
     try {
-      const [rows] = await db.execute(`SELECT * FROM users WHERE refresh_token = ?`, [refreshToken]);
-        if (rows.length == 0) return errorRes(res, null, "Unauthorized", 403);
-        jwt.verify(
-          refreshToken,
-          process.env.REFRESH_TOKEN_SECRET,
-          (err, decoded) => {
-            if (err) return errorRes(res, null, "Unauthorized", 403);
-            const userId = result[0].id;
-            const name = result[0].name;
-            const email = result[0].email;
-            const accessToken = jwt.sign(
-              { userId, name, email },
-              process.env.ACCESS_TOKEN_SECRET,
-              {
-                expiresIn: "1d",
-              }
-            );
-            return successRes(
-              res,
-              { accessToken: accessToken },
-              "Token refreshed",
-              200
-            );
-          }
-        );
+      const [rows] = await db.execute(
+        `SELECT * FROM users WHERE refresh_token = ?`,
+        [refreshToken]
+      );
+      if (rows.length == 0) return errorRes(res, null, "Unauthorized", 403);
+      const decoded = jwt.verify(
+        refreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+      );
+
+      // Mendapatkan informasi yang diperlukan dari decoded token
+      const userId = decoded.userId;
+      const name = decoded.name;
+      const email = decoded.email;
+
+      // Membuat access token baru
+      const accessToken = jwt.sign(
+        { userId, name, email },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      return successRes(
+        res,
+        { accessToken: accessToken },
+        "Token refreshed",
+        200
+      );
+      // jwt.verify(
+      //   refreshToken,
+      //   process.env.REFRESH_TOKEN_SECRET,
+      //   (err, decoded) => {
+      //     if (err) return errorRes(res, null, "Unauthorized", 403);
+      //     const userId = result[0].id;
+      //     const name = result[0].name;
+      //     const email = result[0].email;
+      //     const accessToken = jwt.sign(
+      //       { userId, name, email },
+      //       process.env.ACCESS_TOKEN_SECRET,
+      //       {
+      //         expiresIn: "1d",
+      //       }
+      //     );
+      //     return successRes(
+      //       res,
+      //       { accessToken: accessToken },
+      //       "Token refreshed",
+      //       200
+      //     );
+      //   }
+      // );
     } catch (err) {
       console.log(err);
       return errorRes(res, err.message, "Error", 500);
