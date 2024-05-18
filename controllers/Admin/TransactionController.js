@@ -107,9 +107,10 @@ class Transaction {
                 `SELECT menu_name FROM menus WHERE id = ? LIMIT 1`,
                 [detail.id_menu]
               );
-              const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, menu_name, item_price, price, status, qty) VALUES (?, ?, ?, ?, ?, ?)`;
+              const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, id_menu, menu_name, item_price, price, status, qty) VALUES (?, ?, ?, ?, ?, ?, ?)`;
               const [rows] = await conn.execute(sql_transaction_detail, [
                 lastIdTransaction,
+                detail.id_menu,
                 menus[0].menu_name,
                 detail.price,
                 detail.subtotal,
