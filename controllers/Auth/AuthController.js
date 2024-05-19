@@ -87,7 +87,7 @@ export default class Auth {
       );
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message, "Account not found", 404);
+      return errorRes(res, err.message, "Error DB", 404);
     }
   };
 
