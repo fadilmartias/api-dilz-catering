@@ -22,7 +22,7 @@ export default class Auth {
       password: hashPassword,
     };
     try {
-      const [rows] = await db.execute(`INSERT INTO users SET ?`, data);
+      const [rows] = await db.execute(`INSERT INTO users SET name = ?, email = ?, phone = ?, username = ?, password = ?`, [name, email, phone, username, hashPassword]);
       return successRes(res, rows, "Success Register User");
     } catch (err) {
       console.log(err);
