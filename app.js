@@ -10,11 +10,12 @@ import { db } from "./config/database.js";
 
 
 const app = express()
-const port = 5000
+const port = 8080
 
 // app config
 dotenv.config();
 app.disable('x-powered-by')
+app.set('port', port);
 app.use(helmet())
 app.use(cors({
   origin: '*',  
@@ -29,7 +30,7 @@ app.use(express.json())
 app.use('/admin', AdminRoute)
 app.use('/auth', AuthRoute)
 app.get("/", (req, res) => {
-  res.send("Api Siap");
+  res.send("Api Siap2");
 });
 app.get("/db", async (req, res) => {
   let conn;

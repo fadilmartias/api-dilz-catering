@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 
-export const db = await mysql.createPool({
+export const db = mysql.createPool({
   host: "dilzstudio.com",
   user: "dila9917_admin",
   password: "namakau123",
