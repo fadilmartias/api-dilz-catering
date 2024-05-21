@@ -4,7 +4,7 @@ import { errorRes, successRes } from "../../utils/response.js";
 class Menu {
   list = async (req, res) => {
     try {
-      const [menus] = await db.execute("SELECT * FROM menus");
+      const [menus] = await db.execute("SELECT m.*, JSON_ARRAYAGG(c.category) AS categories FROM menus m JOIN menu_categories mc ON m.id = mc.id_menu JOIN categories c ON mc.id_category = c.id GROUP BY m.id");
       return successRes(res, menus, `Menu data have been retrieved.`);
     } catch (err) {
       console.log(err);
@@ -15,7 +15,7 @@ class Menu {
   listToday = async (req, res) => {
     try {
       const [menus, fields] = await db.execute(
-        "SELECT * FROM menus WHERE status = 1 AND date = CURDATE()"
+        "SELECT m.*, JSON_ARRAYAGG(c.category) AS categories FROM menus m JOIN menu_categories mc ON m.id = mc.id_menu JOIN categories c ON mc.id_category = c.id WHERE m.status = 1 AND date = CURDATE() GROUP BY m.id"
       );
       return successRes(res, menus, `Today menu data have been retrieved.`);
     } catch (err) {
