@@ -50,10 +50,10 @@ class Transaction {
   listByToday = async (req, res) => {
     try {
       const [rows] = await db.execute(`SELECT 
-        created_at AS date, 
+        DATE(created_at) AS date, 
         COUNT(*) AS total,
         SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS lunas,
-        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions WHERE DATE(created_at) = CURDATE() GROUP BY created_at ORDER BY created_at DESC`);
+        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions WHERE DATE(created_at) = CURDATE() GROUP BY DATE(created_at) ORDER BY created_at DESC`);
       return successRes(res, rows, "Today transaction has been retrieved");
     } catch (err) {
       console.log(err);
@@ -64,10 +64,10 @@ class Transaction {
   listByDate = async (req, res) => {
     try {
       const [rows] = await db.execute(`SELECT 
-      created_at AS date, 
+      DATE(created_at) AS date, 
       COUNT(*) AS total,
       SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS lunas,
-      SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions GROUP BY created_at ORDER BY created_at DESC`);
+      SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions GROUP BY DATE(created_at) ORDER BY created_at DESC`);
       return successRes(res, rows, `Transaction has been retrieved`);
     } catch (err) {
       console.log(err);

@@ -52,14 +52,14 @@ export default class Auth {
         { userId, name, email },
         process.env.ACCESS_TOKEN_SECRET,
         {
-          expiresIn: "1d",
+          expiresIn: "1y",
         }
       );
       const refreshToken = jwt.sign(
         { userId, name, email },
         process.env.REFRESH_TOKEN_SECRET,
         {
-          expiresIn: "1d",
+          expiresIn: "1y",
         }
       );
       await db.execute("UPDATE users SET refresh_token = ? WHERE id = ?", [
@@ -68,7 +68,7 @@ export default class Auth {
       ]);
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 365 * 24 * 60 * 60 * 1000,
         // secure: true // jika https
       });
       let formattedUser = {};
@@ -139,7 +139,7 @@ export default class Auth {
       const accessToken = jwt.sign(
         { userId, name, email },
         process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "1y" }
       );
 
       return successRes(
