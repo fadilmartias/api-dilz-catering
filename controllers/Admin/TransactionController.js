@@ -10,7 +10,7 @@ class Transaction {
     let transformedData = [];
     try {
       const [rows] = await db.execute(
-        `SELECT t.*, td.*, t.id id_transaction, u.*, u.id id_user, td.id id_detail, t.status status_bayar FROM transactions t JOIN users u ON t.id_user = u.id JOIN transaction_details td ON t.id = td.id_transaction WHERE 1 AND DATE(td.created_at) = DATE_FORMAT(STR_TO_DATE('${input.date}', '%d-%m-%Y'), '%Y-%m-%d') ORDER BY t.created_at DESC`
+        `SELECT t.id id_transaction, td.menu_name, SUM(td.qty) AS qty, SUM(t.net_price) AS net_price, u.name, u.id id_user, t.status status_bayar FROM transactions t JOIN users u ON t.id_user = u.id JOIN transaction_details td ON t.id = td.id_transaction WHERE 1 AND DATE(td.created_at) = DATE_FORMAT(STR_TO_DATE('${input.date}', '%d-%m-%Y'), '%Y-%m-%d') GROUP BY u.id, td.menu_name ORDER BY t.created_at DESC`
       );
 
       // Loop melalui setiap entri hasil quey
