@@ -76,7 +76,6 @@ class Menu {
 
   deleteMenu = async (req, res) => {
     const input = req.params;
-    console.log(input.id);
     try {
       const [rows, fields] = await db.execute(`DELETE FROM menus WHERE id = ?`, [input.id]);
         return successRes(res, rows, `${rows.affectedRows} record has been deleted`);

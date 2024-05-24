@@ -83,7 +83,6 @@ class Transaction {
       JOIN transactions t ON td.id_transaction = t.id
       JOIN menus m ON td.id_menu = m.id
       WHERE t.id_user = ? ORDER BY t.created_at DESC`, [id_user]);
-      console.log(rows);
       return successRes(res, rows, `Transaction has been retrieved`);
     } catch (err) {
       console.log(err);
@@ -93,7 +92,6 @@ class Transaction {
 
   addMultipleOrder = async (req, res) => {
     const input = req.body;
-    console.log(input);
     let affectedRows = {
       transaction: 0,
       transaction_detail: 0,
@@ -113,7 +111,7 @@ class Transaction {
             0,
             item.total_price,
             item.total_price,
-            input.is_testing
+            item.is_testing
           ]);
           lastIdTransaction = rows.insertId;
           affectedRows.transaction += rows.affectedRows
