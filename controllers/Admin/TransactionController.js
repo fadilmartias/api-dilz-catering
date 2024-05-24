@@ -10,13 +10,14 @@ class Transaction {
     let transformedData = [];
     try {
       const [rows] = await db.execute(
-        `SELECT t.id id_transaction, td.menu_name, SUM(td.qty) AS qty, SUM(t.net_price) AS net_price, u.name, u.id id_user, t.status status_bayar FROM transactions t JOIN users u ON t.id_user = u.id JOIN transaction_details td ON t.id = td.id_transaction WHERE 1 AND DATE(td.created_at) = DATE_FORMAT(STR_TO_DATE('${input.date}', '%d-%m-%Y'), '%Y-%m-%d') GROUP BY u.id, td.menu_name ORDER BY t.created_at DESC`
+        `SELECT t.id id_transaction, td.menu_name, td.qty, t.net_price, u.name, u.id id_user, t.status status_bayar FROM transactions t JOIN users u ON t.id_user = u.id JOIN transaction_details td ON t.id = td.id_transaction WHERE 1 AND DATE(td.created_at) 
+        = DATE_FORMAT(STR_TO_DATE('${input.date}', '%d-%m-%Y'), '%Y-%m-%d') ORDER BY t.created_at DESC`
       );
 
       // Loop melalui setiap entri hasil quey
       let no = -1;
       rows.map(function (entry, idx) {
-        if (!id_users.includes(entry.id_user)) {
+        // if (!id_users.includes(entry.id_user)) {
           no++;
           var transaction = {
             id_transaction: entry.id_transaction,
@@ -26,9 +27,9 @@ class Transaction {
             status_bayar: entry.status_bayar,
             details: [],
           };
-          id_users.push(entry.id_user);
+          // id_users.push(entry.id_user);
           transformedData.push(transaction);
-        }
+        // }
 
         var detail = {
           id_detail: entry.id_detail,
@@ -43,7 +44,7 @@ class Transaction {
       return successRes(res, transformedData, "Transaction has been retrieved");
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
   };
 
@@ -57,7 +58,7 @@ class Transaction {
       return successRes(res, rows, "Today transaction has been retrieved");
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
   };
 
@@ -71,9 +72,24 @@ class Transaction {
       return successRes(res, rows, `Transaction has been retrieved`);
     } catch (err) {
       console.log(err);
-      return errorRes(err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
-  };
+  }
+
+  listByUser = async (req, res) => {
+    const {id_user} = req.body
+    try {
+      const [rows] = await db.execute(`SELECT t.*, td.*, td.status status_detail, td.id id_detail, td.qty qty_detail, m.slug FROM transaction_details td
+      JOIN transactions t ON td.id_transaction = t.id
+      JOIN menus m ON td.id_menu = m.id
+      WHERE t.id_user = ? ORDER BY t.created_at DESC`, [id_user]);
+      console.log(rows);
+      return successRes(res, rows, `Transaction has been retrieved`);
+    } catch (err) {
+      console.log(err);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
+    }
+  }
 
   addMultipleOrder = async (req, res) => {
     const input = req.body;
@@ -89,14 +105,15 @@ class Transaction {
       for (const item of input) {
         const noInvoice = generateInvoiceNumber();
         let lastIdTransaction;
-        const sql_transaction = `INSERT INTO transactions (no_invoice, id_user, status, gross_price, net_price) VALUES (?, ?, ?, ?, ?)`;
+        const sql_transaction = `INSERT INTO transactions (no_invoice, id_user, status, gross_price, net_price, is_testing) VALUES (?, ?, ?, ?, ?, ?)`;
         if (item.menu.length > 0 && item.total_price > 0) {
           const [rows] = await conn.execute(sql_transaction, [
             noInvoice,
             item.id_user,
             0,
             item.total_price,
-            item.total_price
+            item.total_price,
+            input.is_testing
           ]);
           lastIdTransaction = rows.insertId;
           affectedRows.transaction += rows.affectedRows
@@ -104,14 +121,15 @@ class Transaction {
           for (const detail of item.menu) {
             if (detail.id_menu != "" && detail.qty > 0 && detail.subtotal > 0) {
               const [menus] = await conn.execute(
-                `SELECT menu_name FROM menus WHERE id = ? LIMIT 1`,
+                `SELECT menu_name,img FROM menus WHERE id = ? LIMIT 1`,
                 [detail.id_menu]
               );
-              const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, id_menu, menu_name, item_price, price, status, qty) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+              const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, id_menu, menu_name, menu_img, item_price, price, status, qty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
               const [rows] = await conn.execute(sql_transaction_detail, [
                 lastIdTransaction,
                 detail.id_menu,
                 menus[0].menu_name,
+                menus[0].img,
                 detail.price,
                 detail.subtotal,
                 0,
@@ -131,7 +149,7 @@ class Transaction {
     } catch (err) {
       console.log(err);
       await conn.rollback();
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     } finally {
       conn.release();
     }
@@ -143,7 +161,7 @@ class Transaction {
       const [rows] = await db.execute(`UPDATE transactions SET status = ? WHERE id = ?`, [input.status, input.id_transaction]);
         return successRes(res, rows, `${rows.affectedRows} records has been updated`);
     } catch (err) {
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
   };
 }

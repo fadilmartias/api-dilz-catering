@@ -4,23 +4,23 @@ import { errorRes, successRes } from "../../utils/response.js";
 class Menu {
   list = async (req, res) => {
     try {
-      const [menus] = await db.execute("SELECT m.*, JSON_ARRAYAGG(c.category) AS categories FROM menus m JOIN menu_categories mc ON m.id = mc.id_menu JOIN categories c ON mc.id_category = c.id GROUP BY m.id");
+      const [menus] = await db.execute("SELECT m.*, JSON_ARRAYAGG(c.category) AS categories FROM menus m LEFT JOIN menu_categories mc ON m.id = mc.id_menu LEFT JOIN categories c ON mc.id_category = c.id GROUP BY m.id");
       return successRes(res, menus, `Menu data have been retrieved.`);
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
   };
 
   listToday = async (req, res) => {
     try {
       const [menus, fields] = await db.execute(
-        "SELECT m.*, JSON_ARRAYAGG(c.category) AS categories FROM menus m JOIN menu_categories mc ON m.id = mc.id_menu JOIN categories c ON mc.id_category = c.id WHERE m.status = 1 AND date = CURDATE() GROUP BY m.id"
+        "SELECT m.*, JSON_ARRAYAGG(c.category) AS categories FROM menus m LEFT JOIN menu_categories mc ON m.id = mc.id_menu LEFT JOIN categories c ON mc.id_category = c.id WHERE m.status <> 0 AND date = CURDATE() GROUP BY m.id"
       );
       return successRes(res, menus, `Today menu data have been retrieved.`);
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
   };
 
@@ -48,7 +48,7 @@ class Menu {
       }
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
   };
 
@@ -68,7 +68,7 @@ class Menu {
     } catch (err) {
       console.log(err);
       await conn.rollback();
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     } finally {
       conn.release();
     }
@@ -82,7 +82,7 @@ class Menu {
         return successRes(res, rows, `${rows.affectedRows} record has been deleted`);
     } catch (err) {
       console.log(err);
-      return errorRes(res, err.message);
+      return errorRes(res, err.message ? err.message : err.sqlMessage);
     }
   };
 }
