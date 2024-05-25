@@ -32,22 +32,22 @@ class Customer {
       data = user[0]
       if(user[0].current_point >= setting[0].rooster_point) {
         data.img_level = 'ayam_jagoan.svg';
-        data.level = 'Ayam Jagoan'
+        data.current_level = 'Ayam Jagoan'
         data.next_level = 'Udah Paling Jago'
         data.next_point = '0';
       } else if (user[0].current_point >= setting[0].hen_point) {
         data.img_level = 'ayam_dewasa.svg'
-        data.level = 'Ayam Dewasa'
+        data.current_level = 'Ayam Dewasa'
         data.next_level = 'Ayam Jagoan'
         data.next_point = setting[0].rooster_point;
       } else if (user[0].current_point >= setting[0].chick_point) {
         data.img_level = 'anak_ayam.svg'
-        data.level = 'Anak Ayam'
+        data.current_level = 'Anak Ayam'
         data.next_level = 'Ayam Dewasa'
         data.next_point = setting[0].hen_point;
       } else {
         data.img_level = 'telur.svg'
-        data.level = 'Telur'
+        data.current_level = 'Telur'
         data.next_level = 'Anak Ayam'
         data.next_point = setting[0].chick_point;
       }

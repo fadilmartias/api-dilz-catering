@@ -53,8 +53,9 @@ class Transaction {
       const [rows] = await db.execute(`SELECT 
         DATE(created_at) AS date, 
         COUNT(*) AS total,
+        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS cancel,
         SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS lunas,
-        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions WHERE DATE(created_at) = CURDATE() GROUP BY DATE(created_at) ORDER BY created_at DESC`);
+        SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions WHERE DATE(created_at) = CURDATE() GROUP BY DATE(created_at) ORDER BY created_at DESC`);
       return successRes(res, rows, "Today transaction has been retrieved");
     } catch (err) {
       console.log(err);
@@ -67,8 +68,9 @@ class Transaction {
       const [rows] = await db.execute(`SELECT 
       DATE(created_at) AS date, 
       COUNT(*) AS total,
+      SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS cancel,
       SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS lunas,
-      SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions GROUP BY DATE(created_at) ORDER BY created_at DESC`);
+      SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS belum_lunas FROM transactions GROUP BY DATE(created_at) ORDER BY created_at DESC`);
       return successRes(res, rows, `Transaction has been retrieved`);
     } catch (err) {
       console.log(err);
@@ -79,7 +81,7 @@ class Transaction {
   listByUser = async (req, res) => {
     const {id_user} = req.body
     try {
-      const [rows] = await db.execute(`SELECT t.*, td.*, td.status status_detail, td.id id_detail, td.qty qty_detail, m.slug FROM transaction_details td
+      const [rows] = await db.execute(`SELECT t.*, td.*, td.status status_detail, t.id id_transaction, t.status status_bayar, td.id id_detail, td.qty qty_detail, m.slug FROM transaction_details td
       JOIN transactions t ON td.id_transaction = t.id
       JOIN menus m ON td.id_menu = m.id
       WHERE t.id_user = ? ORDER BY t.created_at DESC`, [id_user]);
@@ -103,12 +105,11 @@ class Transaction {
       for (const item of input) {
         const noInvoice = generateInvoiceNumber();
         let lastIdTransaction;
-        const sql_transaction = `INSERT INTO transactions (no_invoice, id_user, status, gross_price, net_price, is_testing) VALUES (?, ?, ?, ?, ?, ?)`;
+        const sql_transaction = `INSERT INTO transactions (no_invoice, id_user, gross_price, net_price, is_testing) VALUES (?, ?, ?, ?, ?, ?)`;
         if (item.menu.length > 0 && item.total_price > 0) {
           const [rows] = await conn.execute(sql_transaction, [
             noInvoice,
             item.id_user,
-            0,
             item.total_price,
             item.total_price,
             item.is_testing
@@ -122,7 +123,7 @@ class Transaction {
                 `SELECT menu_name,img FROM menus WHERE id = ? LIMIT 1`,
                 [detail.id_menu]
               );
-              const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, id_menu, menu_name, menu_img, item_price, price, status, qty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+              const sql_transaction_detail = `INSERT INTO transaction_details (id_transaction, id_menu, menu_name, menu_img, item_price, price, qty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
               const [rows] = await conn.execute(sql_transaction_detail, [
                 lastIdTransaction,
                 detail.id_menu,
@@ -130,7 +131,6 @@ class Transaction {
                 menus[0].img,
                 detail.price,
                 detail.subtotal,
-                0,
                 detail.qty,
               ]);
             affectedRows.transaction_detail += rows.affectedRows
